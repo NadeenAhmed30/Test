@@ -104,8 +104,7 @@
         gap: 0.5rem;
       }
 
-      .required-tag,
-      .optional-tag {
+      .required-tag {
         font-size: 0.72rem;
         padding: 0.12rem 0.45rem;
         border-radius: 999px;
@@ -117,12 +116,6 @@
         color: #fde68a;
         border-color: #92400e;
         background: #3f2a06;
-      }
-
-      .optional-tag {
-        color: #bfdbfe;
-        border-color: #1e40af;
-        background: #172554;
       }
 
       input,
@@ -267,15 +260,6 @@
         <section class="grid">
           <label>
             <span class="label-top">
-              <span>Membership start date</span>
-              <span class="optional-tag">Optional</span>
-            </span>
-            <input id="membershipStartDate" type="text" placeholder="2024-06-21 00:00:00 PDT" />
-            <p class="format-note">Record-only; does not affect transfer math.</p>
-          </label>
-
-          <label>
-            <span class="label-top">
               <span>Account closure date</span>
               <span class="required-tag">Required</span>
             </span>
@@ -334,7 +318,6 @@
     <script>
       const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
-      const membershipStartDateInput = document.getElementById("membershipStartDate");
       const closureDateInput = document.getElementById("closureDate");
       const membershipEndDateInput = document.getElementById("membershipEndDate");
       const banDaysInput = document.getElementById("banDays");
@@ -448,7 +431,6 @@
       }
 
       function clearForm() {
-        membershipStartDateInput.value = "";
         closureDateInput.value = "";
         membershipEndDateInput.value = "";
         banDaysInput.value = "365";
@@ -458,7 +440,6 @@
       }
 
       function calculate() {
-        const membershipStartDate = parseInputDate(membershipStartDateInput.value);
         const closureDate = parseInputDate(closureDateInput.value);
         const membershipEndDate = parseInputDate(membershipEndDateInput.value);
         const newAccountDate = parseInputDate(newAccountDateInput.value);
@@ -504,9 +485,6 @@
         const summary = [
           "Membership Transfer Summary",
           "--------------------------",
-          `Membership start date (record only): ${
-            membershipStartDate ? formatDate(membershipStartDate) : "(not provided)"
-          }`,
           `Closure date: ${formatDate(closureDate)}`,
           `Original membership end date: ${formatDate(membershipEndDate)}`,
           `Ban duration: ${banDays} day(s)`,
