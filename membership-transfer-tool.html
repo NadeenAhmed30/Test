@@ -1,0 +1,554 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Membership Transfer Tool</title>
+    <style>
+      :root {
+        --bg: #030712;
+        --panel: #0b1220;
+        --panel-soft: #111a2b;
+        --text: #e5e7eb;
+        --muted: #94a3b8;
+        --border: #273449;
+        --accent: #3b82f6;
+        --accent-soft: #1d4ed8;
+        --success-bg: #072e1e;
+        --success-border: #166534;
+        --warning-bg: #3f2a06;
+        --warning-border: #92400e;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        padding: 1rem;
+        color: var(--text);
+        font-family: "Segoe UI", Arial, Helvetica, sans-serif;
+        background: radial-gradient(circle at top, #0f172a 0%, var(--bg) 55%);
+        display: grid;
+        place-items: center;
+      }
+
+      .app {
+        width: min(96vw, 920px);
+        background: linear-gradient(180deg, #0b1220 0%, #0a1120 100%);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 1.1rem;
+        box-shadow: 0 22px 56px rgba(0, 0, 0, 0.38);
+      }
+
+      .header {
+        margin-bottom: 1rem;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 1.5rem;
+        line-height: 1.25;
+      }
+
+      .hint {
+        margin: 0.5rem 0 0;
+        color: var(--muted);
+      }
+
+      .hint strong {
+        color: #bfdbfe;
+      }
+
+      .panel {
+        background: var(--panel-soft);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 0.9rem;
+      }
+
+      .panel + .panel {
+        margin-top: 0.9rem;
+      }
+
+      .panel-title {
+        margin: 0 0 0.75rem;
+        font-size: 1rem;
+      }
+
+      .grid {
+        display: grid;
+        gap: 0.8rem;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      @media (max-width: 760px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      label {
+        display: grid;
+        gap: 0.35rem;
+        font-size: 0.92rem;
+      }
+
+      .label-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .required-tag,
+      .optional-tag {
+        font-size: 0.72rem;
+        padding: 0.12rem 0.45rem;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        color: var(--muted);
+      }
+
+      .required-tag {
+        color: #fde68a;
+        border-color: #92400e;
+        background: #3f2a06;
+      }
+
+      .optional-tag {
+        color: #bfdbfe;
+        border-color: #1e40af;
+        background: #172554;
+      }
+
+      input,
+      textarea {
+        width: 100%;
+        border: 1px solid var(--border);
+        border-radius: 9px;
+        background: #0a1324;
+        color: var(--text);
+      }
+
+      input {
+        padding: 0.62rem 0.68rem;
+      }
+
+      input:focus,
+      textarea:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+      }
+
+      .format-note {
+        margin: 0.12rem 0 0;
+        color: var(--muted);
+        font-size: 0.78rem;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+        margin-top: 0.8rem;
+      }
+
+      button {
+        border: 0;
+        border-radius: 9px;
+        cursor: pointer;
+        color: #f8fafc;
+        font-weight: 600;
+        font-size: 0.9rem;
+        padding: 0.62rem 0.92rem;
+      }
+
+      #calculateBtn {
+        background: linear-gradient(180deg, var(--accent) 0%, var(--accent-soft) 100%);
+      }
+
+      #copyBtn {
+        background: #065f46;
+      }
+
+      #clearBtn {
+        background: #374151;
+      }
+
+      .results {
+        margin-top: 0.9rem;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 0.95rem;
+        background: #0a1324;
+      }
+
+      .status {
+        margin: 0 0 0.75rem;
+        padding: 0.55rem 0.68rem;
+        border-radius: 8px;
+        font-size: 0.9rem;
+      }
+
+      .status.success {
+        background: var(--success-bg);
+        border: 1px solid var(--success-border);
+      }
+
+      .status.warning {
+        background: var(--warning-bg);
+        border: 1px solid var(--warning-border);
+      }
+
+      .metric-grid {
+        display: grid;
+        gap: 0.7rem;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      @media (max-width: 700px) {
+        .metric-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .metric {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--panel-soft);
+        padding: 0.65rem 0.7rem;
+      }
+
+      .metric-title {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.82rem;
+      }
+
+      .metric-value {
+        margin: 0.25rem 0 0;
+        font-size: 1rem;
+        font-weight: 600;
+      }
+
+      .summary-label {
+        display: block;
+        margin: 0 0 0.45rem;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      textarea {
+        margin-top: 0.72rem;
+        min-height: 170px;
+        padding: 0.7rem;
+        resize: vertical;
+        line-height: 1.45;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="app">
+      <header class="header">
+        <h1>Membership Transfer Calculator</h1>
+        <p class="hint">
+          Enter dates exactly as received. <strong>Required fields</strong> determine eligibility and
+          transfer credit.
+        </p>
+      </header>
+
+      <section class="panel">
+        <h2 class="panel-title">Case Inputs</h2>
+        <section class="grid">
+          <label>
+            <span class="label-top">
+              <span>Membership start date</span>
+              <span class="optional-tag">Optional</span>
+            </span>
+            <input id="membershipStartDate" type="text" placeholder="2024-06-21 00:00:00 PDT" />
+            <p class="format-note">Record-only; does not affect transfer math.</p>
+          </label>
+
+          <label>
+            <span class="label-top">
+              <span>Account closure date</span>
+              <span class="required-tag">Required</span>
+            </span>
+            <input id="closureDate" type="text" placeholder="Jan 15, 2025" />
+            <p class="format-note">Example: Jan 15, 2025</p>
+          </label>
+
+          <label>
+            <span class="label-top">
+              <span>Membership end date</span>
+              <span class="required-tag">Required</span>
+            </span>
+            <input id="membershipEndDate" type="text" placeholder="2025-06-21 00:00:00 PDT" />
+            <p class="format-note">Example: 2025-06-21 00:00:00 PDT</p>
+          </label>
+
+          <label>
+            <span class="label-top">
+              <span>Ban duration (days)</span>
+              <span class="required-tag">Required</span>
+            </span>
+            <input id="banDays" type="number" min="1" value="365" />
+            <p class="format-note">Default is 365.</p>
+          </label>
+
+          <label>
+            <span class="label-top">
+              <span>New account creation date</span>
+              <span class="required-tag">Required</span>
+            </span>
+            <input id="newAccountDate" type="text" placeholder="Jan 15, 2026" />
+            <p class="format-note">Example: Jan 15, 2026</p>
+          </label>
+        </section>
+
+        <div class="actions">
+          <button id="calculateBtn" type="button">Calculate Transfer</button>
+          <button id="copyBtn" type="button">Copy Transfer Summary</button>
+          <button id="clearBtn" type="button">Clear Form</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2 class="panel-title">Results</h2>
+        <section class="results" id="results">
+          <p class="status warning">Complete required fields, then click Calculate Transfer.</p>
+        </section>
+      </section>
+
+      <section class="panel">
+        <label for="summaryText" class="summary-label">Transfer summary (ready to paste)</label>
+        <textarea id="summaryText" readonly></textarea>
+      </section>
+    </main>
+
+    <script>
+      const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+      const membershipStartDateInput = document.getElementById("membershipStartDate");
+      const closureDateInput = document.getElementById("closureDate");
+      const membershipEndDateInput = document.getElementById("membershipEndDate");
+      const banDaysInput = document.getElementById("banDays");
+      const newAccountDateInput = document.getElementById("newAccountDate");
+      const calculateBtn = document.getElementById("calculateBtn");
+      const copyBtn = document.getElementById("copyBtn");
+      const clearBtn = document.getElementById("clearBtn");
+      const results = document.getElementById("results");
+      const summaryText = document.getElementById("summaryText");
+
+      function makeUtcDate(year, month, day) {
+        const date = new Date(Date.UTC(year, month - 1, day));
+        if (
+          date.getUTCFullYear() !== year ||
+          date.getUTCMonth() !== month - 1 ||
+          date.getUTCDate() !== day
+        ) {
+          return null;
+        }
+        return date;
+      }
+
+      function parseInputDate(value) {
+        if (!value || !value.trim()) return null;
+        const trimmed = value.trim();
+
+        // Supports: 2024-06-21 00:00:00 PDT (uses leading YYYY-MM-DD)
+        const ymdMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})(?:\s|$)/);
+        if (ymdMatch) {
+          const year = Number.parseInt(ymdMatch[1], 10);
+          const month = Number.parseInt(ymdMatch[2], 10);
+          const day = Number.parseInt(ymdMatch[3], 10);
+          return makeUtcDate(year, month, day);
+        }
+
+        // Supports: Jan 15, 2025 and similar browser-parsable date strings.
+        const parsedMs = Date.parse(trimmed);
+        if (Number.isNaN(parsedMs)) return null;
+        const parsed = new Date(parsedMs);
+        return makeUtcDate(parsed.getUTCFullYear(), parsed.getUTCMonth() + 1, parsed.getUTCDate());
+      }
+
+      function formatDate(date) {
+        return date.toISOString().slice(0, 10);
+      }
+
+      function addDays(date, days) {
+        return new Date(date.getTime() + days * MS_PER_DAY);
+      }
+
+      function diffDays(start, end) {
+        return Math.floor((end.getTime() - start.getTime()) / MS_PER_DAY);
+      }
+
+      function wholeDaysNonNegative(start, end) {
+        const days = diffDays(start, end);
+        return days > 0 ? days : 0;
+      }
+
+      function humanDuration(days) {
+        if (days <= 0) return "0 days";
+        const months = Math.floor(days / 30);
+        const remainder = days % 30;
+        if (months === 0) return `${days} day${days === 1 ? "" : "s"}`;
+        return `${months} month${months === 1 ? "" : "s"} and ${remainder} day${
+          remainder === 1 ? "" : "s"
+        }`;
+      }
+
+      function setDefaults() {
+        const today = new Date();
+        newAccountDateInput.value = today.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        });
+      }
+
+      function renderWarning(message) {
+        results.innerHTML = `<p class="status warning">${message}</p>`;
+      }
+
+      function renderResults(data) {
+        results.innerHTML = `
+          <p class="status ${data.isEligible ? "success" : "warning"}">
+            <strong>Eligibility:</strong> ${data.eligibilityText}
+          </p>
+          <div class="metric-grid">
+            <article class="metric">
+              <p class="metric-title">Ban ends on</p>
+              <p class="metric-value">${data.banEnd}</p>
+            </article>
+            <article class="metric">
+              <p class="metric-title">Frozen transferable credit</p>
+              <p class="metric-value">${data.creditDays} day(s)</p>
+            </article>
+            <article class="metric">
+              <p class="metric-title">Credit in readable form</p>
+              <p class="metric-value">${data.creditHuman}</p>
+            </article>
+            <article class="metric">
+              <p class="metric-title">Transfer starts on</p>
+              <p class="metric-value">${data.transferStart}</p>
+            </article>
+            <article class="metric">
+              <p class="metric-title">Projected premium end</p>
+              <p class="metric-value">${data.transferEnd}</p>
+            </article>
+          </div>
+        `;
+      }
+
+      function clearForm() {
+        membershipStartDateInput.value = "";
+        closureDateInput.value = "";
+        membershipEndDateInput.value = "";
+        banDaysInput.value = "365";
+        summaryText.value = "";
+        setDefaults();
+        renderWarning("Complete required fields, then click Calculate Transfer.");
+      }
+
+      function calculate() {
+        const membershipStartDate = parseInputDate(membershipStartDateInput.value);
+        const closureDate = parseInputDate(closureDateInput.value);
+        const membershipEndDate = parseInputDate(membershipEndDateInput.value);
+        const newAccountDate = parseInputDate(newAccountDateInput.value);
+        const banDays = Number.parseInt(banDaysInput.value, 10);
+
+        if (!closureDate || !membershipEndDate || !newAccountDate) {
+          renderWarning(
+            "Could not parse one or more required dates. Use formats like '2024-06-21 00:00:00 PDT' or 'Jan 15, 2025'."
+          );
+          return;
+        }
+
+        if (Number.isNaN(banDays) || banDays < 1) {
+          renderWarning("Ban duration must be at least 1 day.");
+          return;
+        }
+
+        const eligibilityDate = addDays(closureDate, banDays);
+        const frozenTransferDays = wholeDaysNonNegative(closureDate, membershipEndDate);
+        const isEligible = newAccountDate.getTime() >= eligibilityDate.getTime();
+
+        let transferStartDate = null;
+        let transferredUntil = null;
+        if (isEligible && frozenTransferDays > 0) {
+          transferStartDate = newAccountDate;
+          transferredUntil = addDays(transferStartDate, frozenTransferDays);
+        }
+
+        const eligibilityText = isEligible
+          ? "Eligible to transfer now."
+          : "Not eligible yet (new account date is before ban end).";
+
+        renderResults({
+          isEligible,
+          eligibilityText,
+          banEnd: formatDate(eligibilityDate),
+          creditDays: frozenTransferDays,
+          creditHuman: humanDuration(frozenTransferDays),
+          transferStart: transferStartDate ? formatDate(transferStartDate) : "N/A",
+          transferEnd: transferredUntil ? formatDate(transferredUntil) : "N/A",
+        });
+
+        const summary = [
+          "Membership Transfer Summary",
+          "--------------------------",
+          `Membership start date (record only): ${
+            membershipStartDate ? formatDate(membershipStartDate) : "(not provided)"
+          }`,
+          `Closure date: ${formatDate(closureDate)}`,
+          `Original membership end date: ${formatDate(membershipEndDate)}`,
+          `Ban duration: ${banDays} day(s)`,
+          `Ban end (eligibility date): ${formatDate(eligibilityDate)}`,
+          "",
+          `Frozen transferable credit: ${frozenTransferDays} day(s)`,
+          `Human-readable credit: ${humanDuration(frozenTransferDays)}`,
+          `New account creation date: ${formatDate(newAccountDate)}`,
+          `Eligible now: ${isEligible ? "Yes" : "No"}`,
+          `Projected premium end on new account: ${
+            transferredUntil ? formatDate(transferredUntil) : "N/A"
+          }`,
+          "",
+          "Rule used:",
+          "Transferable days = max(0, membership_end_date - closure_date),",
+          "and transfer can be applied once the ban period is over.",
+        ].join("\n");
+
+        summaryText.value = summary;
+      }
+
+      calculateBtn.addEventListener("click", calculate);
+      clearBtn.addEventListener("click", clearForm);
+      copyBtn.addEventListener("click", async () => {
+        if (!summaryText.value.trim()) {
+          calculate();
+        }
+        try {
+          await navigator.clipboard.writeText(summaryText.value);
+          copyBtn.textContent = "Copied";
+          setTimeout(() => {
+            copyBtn.textContent = "Copy Transfer Summary";
+          }, 1200);
+        } catch (_error) {
+          copyBtn.textContent = "Copy failed";
+          setTimeout(() => {
+            copyBtn.textContent = "Copy Transfer Summary";
+          }, 1200);
+        }
+      });
+
+      setDefaults();
+    </script>
+  </body>
+</html>
