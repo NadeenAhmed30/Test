@@ -4,7 +4,162 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Pomodoro Timer</title>
-    <link rel="stylesheet" href="styles.css" />
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        font-family: Arial, Helvetica, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      :root {
+        --bg: #111827;
+        --text: #f3f4f6;
+        --panel: #1f2937;
+        --panel-border: #374151;
+        --card: #111827;
+        --input-bg: #0f172a;
+        --input-border: #4b5563;
+        --muted: #d1d5db;
+      }
+
+      body.theme-light {
+        --bg: #f3f4f6;
+        --text: #111827;
+        --panel: #ffffff;
+        --panel-border: #d1d5db;
+        --card: #f9fafb;
+        --input-bg: #ffffff;
+        --input-border: #d1d5db;
+        --muted: #4b5563;
+      }
+
+      .app {
+        width: min(92vw, 460px);
+        background: var(--panel);
+        border: 1px solid var(--panel-border);
+        border-radius: 14px;
+        padding: 1.2rem;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
+      }
+
+      h1,
+      h2 {
+        margin: 0 0 0.8rem;
+      }
+
+      h1 {
+        text-align: center;
+      }
+
+      .status-card {
+        text-align: center;
+        background: var(--card);
+        border: 1px solid var(--panel-border);
+        border-radius: 10px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+      }
+
+      .mode-label {
+        font-size: 1.1rem;
+        margin: 0;
+        color: #93c5fd;
+      }
+
+      .time-display {
+        font-size: 4rem;
+        font-weight: 700;
+        margin: 0.3rem 0 0.4rem;
+        letter-spacing: 2px;
+      }
+
+      .cycle-text {
+        margin: 0;
+        color: var(--muted);
+      }
+
+      .controls {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.6rem;
+        margin-bottom: 1rem;
+      }
+
+      button {
+        border: none;
+        border-radius: 8px;
+        padding: 0.6rem 0.8rem;
+        font-size: 1rem;
+        cursor: pointer;
+        color: #f9fafb;
+        background: #2563eb;
+      }
+
+      button:hover {
+        filter: brightness(1.08);
+      }
+
+      button:active {
+        transform: scale(0.99);
+      }
+
+      #resetBtn {
+        background: #4b5563;
+      }
+
+      #skipBtn {
+        background: #7c3aed;
+      }
+
+      #themeToggleBtn {
+        background: #0f766e;
+      }
+
+      .settings {
+        display: grid;
+        gap: 0.6rem;
+        border-top: 1px solid var(--panel-border);
+        padding-top: 1rem;
+      }
+
+      label {
+        display: grid;
+        gap: 0.35rem;
+        font-size: 0.95rem;
+      }
+
+      input {
+        width: 100%;
+        border: 1px solid var(--input-border);
+        border-radius: 8px;
+        padding: 0.45rem 0.55rem;
+        background: var(--input-bg);
+        color: var(--text);
+      }
+
+      #applySettingsBtn {
+        margin-top: 0.3rem;
+        background: #0ea5e9;
+      }
+
+      #enableNotificationsBtn {
+        background: #059669;
+      }
+
+      .info-text {
+        margin: 0;
+        font-size: 0.9rem;
+        color: var(--muted);
+      }
+    </style>
   </head>
   <body>
     <main class="app">
@@ -47,6 +202,436 @@
       </section>
     </main>
 
-    <script src="script.js"></script>
+    <script>
+      const modeLabel = document.getElementById("modeLabel");
+      const timeDisplay = document.getElementById("timeDisplay");
+      const cycleCountEl = document.getElementById("cycleCount");
+
+      const startPauseBtn = document.getElementById("startPauseBtn");
+      const resetBtn = document.getElementById("resetBtn");
+      const skipBtn = document.getElementById("skipBtn");
+      const themeToggleBtn = document.getElementById("themeToggleBtn");
+      const applySettingsBtn = document.getElementById("applySettingsBtn");
+      const enableNotificationsBtn = document.getElementById("enableNotificationsBtn");
+      const notificationsStatus = document.getElementById("notificationsStatus");
+
+      const focusInput = document.getElementById("focusInput");
+      const shortBreakInput = document.getElementById("shortBreakInput");
+      const longBreakInput = document.getElementById("longBreakInput");
+      const longBreakEveryInput = document.getElementById("longBreakEveryInput");
+      const STORAGE_KEY = "pomodoro-timer-state-v1";
+      let audioContext = null;
+
+      function isDesktopApp() {
+        return Boolean(window.desktopApp && window.desktopApp.isDesktop);
+      }
+
+      const state = {
+        mode: "focus",
+        running: false,
+        timerId: null,
+        phaseEndAtMs: null,
+        remainingSeconds: 25 * 60,
+        completedFocusSessions: 0,
+        theme: "dark",
+        settings: {
+          focusMinutes: 25,
+          shortBreakMinutes: 5,
+          longBreakMinutes: 15,
+          longBreakEvery: 4,
+        },
+      };
+
+      function formatTime(totalSeconds) {
+        const minutes = Math.floor(totalSeconds / 60)
+          .toString()
+          .padStart(2, "0");
+        const seconds = (totalSeconds % 60).toString().padStart(2, "0");
+        return `${minutes}:${seconds}`;
+      }
+
+      function getModeDurationSeconds(mode) {
+        if (mode === "focus") return state.settings.focusMinutes * 60;
+        if (mode === "shortBreak") return state.settings.shortBreakMinutes * 60;
+        return state.settings.longBreakMinutes * 60;
+      }
+
+      function getModeLabel(mode) {
+        if (mode === "focus") return "Focus";
+        if (mode === "shortBreak") return "Short Break";
+        return "Long Break";
+      }
+
+      function updateDisplay() {
+        modeLabel.textContent = getModeLabel(state.mode);
+        timeDisplay.textContent = formatTime(state.remainingSeconds);
+        cycleCountEl.textContent = state.completedFocusSessions.toString();
+      }
+
+      function applyTheme() {
+        document.body.classList.toggle("theme-light", state.theme === "light");
+        themeToggleBtn.textContent =
+          state.theme === "light" ? "Theme: Light" : "Theme: Dark";
+      }
+
+      function getNotificationStatusText() {
+        if (isDesktopApp()) return "Notifications: enabled via desktop app";
+        if (!("Notification" in window)) return "Notifications: not supported";
+        if (!canUseNotificationsInThisContext()) {
+          return "Notifications: unavailable here (open on https or localhost)";
+        }
+        if (Notification.permission === "granted") return "Notifications: enabled";
+        if (Notification.permission === "denied") return "Notifications: blocked";
+        return "Notifications: not enabled";
+      }
+
+      function updateNotificationStatus() {
+        notificationsStatus.textContent = getNotificationStatusText();
+        enableNotificationsBtn.disabled =
+          isDesktopApp() ||
+          !("Notification" in window) ||
+          !canUseNotificationsInThisContext();
+        enableNotificationsBtn.textContent = isDesktopApp()
+          ? "Desktop Notifications Active"
+          : "Enable Notifications";
+      }
+
+      function canUseNotificationsInThisContext() {
+        if (isDesktopApp()) return true;
+        const isLocalhost =
+          window.location.hostname === "localhost" ||
+          window.location.hostname === "127.0.0.1";
+        return window.isSecureContext || isLocalhost;
+      }
+
+      function saveState() {
+        const data = {
+          settings: state.settings,
+          theme: state.theme,
+          completedFocusSessions: state.completedFocusSessions,
+          mode: state.mode,
+          remainingSeconds: state.remainingSeconds,
+          running: state.running,
+          phaseEndAtMs: state.phaseEndAtMs,
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      }
+
+      function loadState() {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return;
+
+        try {
+          const parsed = JSON.parse(raw);
+          if (parsed.settings) {
+            state.settings.focusMinutes = parsePositiveInt(
+              parsed.settings.focusMinutes,
+              state.settings.focusMinutes,
+              1,
+              120
+            );
+            state.settings.shortBreakMinutes = parsePositiveInt(
+              parsed.settings.shortBreakMinutes,
+              state.settings.shortBreakMinutes,
+              1,
+              60
+            );
+            state.settings.longBreakMinutes = parsePositiveInt(
+              parsed.settings.longBreakMinutes,
+              state.settings.longBreakMinutes,
+              1,
+              90
+            );
+            state.settings.longBreakEvery = parsePositiveInt(
+              parsed.settings.longBreakEvery,
+              state.settings.longBreakEvery,
+              2,
+              12
+            );
+          }
+
+          if (parsed.theme === "light" || parsed.theme === "dark") {
+            state.theme = parsed.theme;
+          }
+
+          state.completedFocusSessions = parsePositiveInt(
+            parsed.completedFocusSessions,
+            0,
+            0,
+            1000000
+          );
+
+          if (
+            parsed.mode === "focus" ||
+            parsed.mode === "shortBreak" ||
+            parsed.mode === "longBreak"
+          ) {
+            state.mode = parsed.mode;
+          }
+          state.remainingSeconds = parsePositiveInt(
+            parsed.remainingSeconds,
+            state.remainingSeconds,
+            0,
+            24 * 60 * 60
+          );
+          state.running = Boolean(parsed.running);
+          state.phaseEndAtMs =
+            typeof parsed.phaseEndAtMs === "number" ? parsed.phaseEndAtMs : null;
+        } catch (_error) {
+          // If stored data is corrupted, continue with defaults.
+        }
+      }
+
+      function handleModeCompleted({ playSignals }) {
+        if (playSignals) {
+          playChime();
+          sendModeNotification();
+        }
+        moveToNextMode();
+      }
+
+      function updateFromClock() {
+        if (!state.running || !state.phaseEndAtMs) return;
+        const now = Date.now();
+        let completedAtLeastOnePhase = false;
+
+        // Catch up through as many completed phases as needed.
+        while (now >= state.phaseEndAtMs) {
+          handleModeCompleted({ playSignals: false });
+          state.phaseEndAtMs += getModeDurationSeconds(state.mode) * 1000;
+          completedAtLeastOnePhase = true;
+        }
+
+        state.remainingSeconds = Math.max(
+          0,
+          Math.ceil((state.phaseEndAtMs - now) / 1000)
+        );
+        updateDisplay();
+        if (completedAtLeastOnePhase) {
+          // Play once even if multiple phases elapsed while backgrounded.
+          playChime();
+          sendModeNotification();
+          saveState();
+        }
+      }
+
+      function setRunning(isRunning, preserveSchedule = false) {
+        state.running = isRunning;
+        startPauseBtn.textContent = isRunning ? "Pause" : "Start";
+
+        if (isRunning) {
+          if (!preserveSchedule || !state.phaseEndAtMs) {
+            state.phaseEndAtMs = Date.now() + state.remainingSeconds * 1000;
+          }
+          updateFromClock();
+          state.timerId = setInterval(updateFromClock, 300);
+        } else if (state.timerId) {
+          clearInterval(state.timerId);
+          state.timerId = null;
+          state.phaseEndAtMs = null;
+        }
+
+        saveState();
+      }
+
+      function ensureAudioContext() {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) return null;
+        if (!audioContext) {
+          audioContext = new AudioContextClass();
+        }
+        return audioContext;
+      }
+
+      function unlockAudio() {
+        const context = ensureAudioContext();
+        if (!context) return;
+        if (context.state !== "running") {
+          context.resume().catch(() => {
+            // Ignore; user may need to interact again.
+          });
+        }
+      }
+
+      function playChime() {
+        const context = ensureAudioContext();
+        if (!context) return;
+
+        if (context.state !== "running") {
+          context.resume().catch(() => {
+            // If resume fails, browser blocked audio.
+          });
+        }
+        if (context.state !== "running") return;
+
+        // Bell-like triple tone for better audibility.
+        const tones = [880, 1175, 880];
+        const duration = 0.18;
+        const gap = 0.05;
+        const startAt = context.currentTime;
+
+        tones.forEach((frequency, index) => {
+          const osc = context.createOscillator();
+          const gain = context.createGain();
+          const noteStart = startAt + index * (duration + gap);
+          const noteEnd = noteStart + duration;
+
+          osc.type = "triangle";
+          osc.frequency.value = frequency;
+          gain.gain.setValueAtTime(0.0001, noteStart);
+          gain.gain.exponentialRampToValueAtTime(0.07, noteStart + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.0001, noteEnd);
+
+          osc.connect(gain);
+          gain.connect(context.destination);
+          osc.start(noteStart);
+          osc.stop(noteEnd + 0.02);
+        });
+      }
+
+      function sendModeNotification() {
+        const body =
+          state.mode === "focus"
+            ? "Time to focus."
+            : state.mode === "longBreak"
+            ? "Take a long break."
+            : "Take a short break.";
+
+        if (isDesktopApp()) {
+          window.desktopApp.sendNotification("Pomodoro Timer", body);
+          return;
+        }
+
+        if (!("Notification" in window)) return;
+        if (!canUseNotificationsInThisContext()) return;
+        if (Notification.permission !== "granted") return;
+        new Notification("Pomodoro Timer", { body });
+      }
+
+      function moveToNextMode() {
+        if (state.mode === "focus") {
+          state.completedFocusSessions += 1;
+          const useLongBreak =
+            state.completedFocusSessions % state.settings.longBreakEvery === 0;
+          state.mode = useLongBreak ? "longBreak" : "shortBreak";
+        } else {
+          state.mode = "focus";
+        }
+
+        state.remainingSeconds = getModeDurationSeconds(state.mode);
+      }
+
+      function resetCurrentMode() {
+        state.remainingSeconds = getModeDurationSeconds(state.mode);
+        updateDisplay();
+      }
+
+      function parsePositiveInt(value, fallback, min, max) {
+        const parsed = Number.parseInt(value, 10);
+        if (Number.isNaN(parsed)) return fallback;
+        return Math.max(min, Math.min(max, parsed));
+      }
+
+      startPauseBtn.addEventListener("click", () => {
+        unlockAudio();
+        if (state.running) {
+          // Convert absolute schedule back into remaining seconds before pausing.
+          if (state.phaseEndAtMs) {
+            state.remainingSeconds = Math.max(
+              0,
+              Math.ceil((state.phaseEndAtMs - Date.now()) / 1000)
+            );
+          }
+          setRunning(false);
+        } else {
+          setRunning(true);
+        }
+      });
+
+      resetBtn.addEventListener("click", () => {
+        setRunning(false);
+        resetCurrentMode();
+        saveState();
+      });
+
+      skipBtn.addEventListener("click", () => {
+        setRunning(false);
+        moveToNextMode();
+        updateDisplay();
+        saveState();
+      });
+
+      applySettingsBtn.addEventListener("click", () => {
+        state.settings.focusMinutes = parsePositiveInt(
+          focusInput.value,
+          state.settings.focusMinutes,
+          1,
+          120
+        );
+        state.settings.shortBreakMinutes = parsePositiveInt(
+          shortBreakInput.value,
+          state.settings.shortBreakMinutes,
+          1,
+          60
+        );
+        state.settings.longBreakMinutes = parsePositiveInt(
+          longBreakInput.value,
+          state.settings.longBreakMinutes,
+          1,
+          90
+        );
+        state.settings.longBreakEvery = parsePositiveInt(
+          longBreakEveryInput.value,
+          state.settings.longBreakEvery,
+          2,
+          12
+        );
+
+        focusInput.value = state.settings.focusMinutes;
+        shortBreakInput.value = state.settings.shortBreakMinutes;
+        longBreakInput.value = state.settings.longBreakMinutes;
+        longBreakEveryInput.value = state.settings.longBreakEvery;
+
+        setRunning(false);
+        resetCurrentMode();
+        saveState();
+      });
+
+      themeToggleBtn.addEventListener("click", () => {
+        state.theme = state.theme === "dark" ? "light" : "dark";
+        applyTheme();
+        saveState();
+      });
+
+      enableNotificationsBtn.addEventListener("click", () => {
+        if (isDesktopApp()) {
+          updateNotificationStatus();
+          return;
+        }
+        if (!("Notification" in window)) {
+          updateNotificationStatus();
+          return;
+        }
+        if (!canUseNotificationsInThisContext()) {
+          updateNotificationStatus();
+          return;
+        }
+        Notification.requestPermission().finally(() => {
+          updateNotificationStatus();
+        });
+      });
+
+      loadState();
+      focusInput.value = state.settings.focusMinutes;
+      shortBreakInput.value = state.settings.shortBreakMinutes;
+      longBreakInput.value = state.settings.longBreakMinutes;
+      longBreakEveryInput.value = state.settings.longBreakEvery;
+      applyTheme();
+      updateNotificationStatus();
+      updateDisplay();
+      if (state.running) {
+        setRunning(true, true);
+      }
+    </script>
   </body>
 </html>
